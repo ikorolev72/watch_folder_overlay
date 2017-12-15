@@ -114,7 +114,12 @@ foreach $fileName ( @ls ) {
 		print STDERR "Cannot move file '$origVideoIn' to '$videoIn': $!. Cannot processing file $fileName\n" ;
 		next;
 	}
-	$cmd="$ffprobe -v error -show_streams -of default=noprint_wrappers=1 $videoIn";
+	
+	$videoIn=$videoIn;
+	$imageoverlay=$imageoverlay;
+
+
+	$cmd="$ffprobe -v error -show_streams -of default=noprint_wrappers=1 \"$videoIn\"";
 	my $streams_info=qx/ $cmd /;
 	$streams_info=~/\s+duration=(\d*\.\d+)/;
 	my $duration=$1;
@@ -143,7 +148,8 @@ foreach $fileName ( @ls ) {
 			$scale="scale=h=-2:w=$widthDef";
 		}
 	}	
-	
+
+
 	$cmd="$ffmpeg -y -loglevel warning -i \"$videoIn\" -i \"$imageoverlay\" $loop -ss 0 -t $duration -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef} [0v]; [0v][1:v]overlay[out]\" -map \"[out]\" -map \"0:a?\" -crf 23 -f mp4 -c:a aac -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
 	my $ret=system( $cmd );
 	if( 0==system( $cmd ) ) {
