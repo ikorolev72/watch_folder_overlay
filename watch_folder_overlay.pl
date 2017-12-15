@@ -1,11 +1,14 @@
 #!/usr/bin/perl
 # korolev-ia [at] yandex.ru
 
+$version="1.1 20171215";
+
 use File::Which;   
 use Getopt::Long;
 use File::Path qw(make_path);
 use File::Spec;
-
+use Cwd;
+use File::Basename;
 
 $widthDef=1080;
 $heightDef=1080;
@@ -15,6 +18,14 @@ $colorkey="0x3BBD1E";
 $video_extensions="avi|mkv|mov|mp4";
 $image_extensions="png|jpg|jpeg|tif|tiff|bmp";
 
+$basedir  = dirname($0);
+chdir( $basedir );
+$curdir = getcwd();
+
+$defIn=File::Spec->catdir( $curdir, "IN" );
+$defOut=File::Spec->catdir( $curdir, "OUT" );
+$defBackup=File::Spec->catdir( $curdir, "BACKUP" );
+$defImageOverlay=File::Spec->catfile( $curdir , "IMAGES", "overlay.png" );
 
 GetOptions (
         'in=s' => \$in,
@@ -25,9 +36,13 @@ GetOptions (
         'mkdir|m' => \$mkdir,
         "help|h|?"  => \$help ) or show_help();
 
-show_help( 'Please set the --in folder' ) unless( $in )	;
-show_help( 'Please set the --out folder' ) unless( $out  )	;
-show_help( 'Please set the --backup folder' ) unless( $backup  )	;
+$in=( $in ) ? $in : $defIn;		
+$out=( $out ) ? $out : $defOut;		
+$backup=( $backup ) ? $backup : $defBackup;	
+$imageoverlay=( $imageoverlay ) ? $imageoverlay : $defImageOverlay;	
+			
+show_help( ) if( $help )	;
+
 
 unless( $ffmpeg ) {
 	$ffmpeg=which 'ffmpeg';
@@ -56,11 +71,18 @@ if( ! -d $backup ) {
 	make_path( $backup ) or die( "Cannot make backup directory '$backup': $!" );
 }
 
+$tmpdir="$backup/tmp" ;
+if( ! -d $tmpdir ) {
+	make_path( $tmpdir ) or die( "Cannot make backup directory '$tmpdir': $!" );
+}
+
+
+
 my ($volume,$directories,$file) = File::Spec->splitpath( $ffmpeg );
 $ffprobe= File::Spec->catpath( $volume,$directories, 'ffprobe.exe' );
 
 if( ! -f $ffprobe ){
-	print STDERR  "Cannot found the '$ffprobe' file. Cannot continue processing.";
+	print STDERR  "Cannot found the '$ffprobe' file. Cannot continue processing.\n";
 }
 
 
@@ -74,17 +96,22 @@ if( $imageoverlay =~/\.($image_extensions)$/i ) {
 }
 
 if( 0==@ls ) {
-	print "Do not found any video files in folder '$in'." ;
+	print "Do not found any video files in folder '$in'.\n" ;
+	print "Press ENTER to exit:";
+	<STDIN>;	
 	exit(0);
 }
 
 foreach $fileName ( @ls ) {
 
-
-	$videoIn="$backup/$fileName";	
-	$videoOut="$out/$fileName";
-	unless( rename( "$in/$fileName", $videoIn ) ) {
-		print STDERR "Cannot move file '$in/$fileName' to '$videoIn': $!. Cannot processing file $fileName" ;
+	$videoIn=File::Spec->catfile( $backup, $fileName);	
+	$videoOut=File::Spec->catfile( $tmpdir, $fileName);
+	$origVideoIn=File::Spec->catfile( $in, $fileName );
+	$origVideoOut=File::Spec->catfile( $out, $fileName );
+	print "Start processing file '$origVideoIn'.\n" ;
+	
+	unless( rename( $origVideoIn, $videoIn ) ) {
+		print STDERR "Cannot move file '$origVideoIn' to '$videoIn': $!. Cannot processing file $fileName\n" ;
 		next;
 	}
 	$cmd="$ffprobe -v error -show_streams -of default=noprint_wrappers=1 $videoIn";
@@ -97,15 +124,15 @@ foreach $fileName ( @ls ) {
 	my $height=$1;
 
 	unless( $duration ) {
-		print STDERR "Cannot get duration of file '$videoIn': $!. Cannot processing file $fileName" ;
+		print STDERR "Cannot get duration of file '$videoIn': $!. Cannot processing file $fileName\n" ;
 		next;
 	}
 	if( !$width ) {
-		print STDERR "Cannot get width of file '$videoIn': $!. Cannot processing file $fileName" ;
+		print STDERR "Cannot get width of file '$videoIn': $!. Cannot processing file $fileName\n" ;
 		next;
 	}
 	if( !$height ) {
-		print STDERR "Cannot get height of file '$videoIn': $!. Cannot processing file $fileName" ;
+		print STDERR "Cannot get height of file '$videoIn': $!. Cannot processing file $fileName\n" ;
 		next;
 	}
 	$scale="null";
@@ -118,21 +145,28 @@ foreach $fileName ( @ls ) {
 	}	
 	
 	$cmd="$ffmpeg -y -loglevel warning -i \"$videoIn\" -i \"$imageoverlay\" $loop -ss 0 -t $duration -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef} [0v]; [0v][1:v]overlay[out]\" -map \"[out]\" -map \"0:a?\" -crf 23 -f mp4 -c:a aac -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
-	#print $cmd;
 	my $ret=system( $cmd );
 	if( 0==system( $cmd ) ) {
-		print "# Processing of file $fileName finished with success. Out file: '$videoOut'\n" ;
+		unless( rename( $videoOut, $origVideoOut ) ) {
+			print STDERR "Cannot move file '$videoOut' to '$origVideoOut': $!\n" ;
+			next;
+		}	
+		print "# Processing of file $fileName finished with success. Out file: '$origVideoOut'\n" ;
 		next;
 	} 
 	print STDERR "# Processing of file $fileName finished with errors: $!\n" ;
 	print $cmd;
 }
 
+print "Press ENTER to exit:";
+<STDIN>;
+exit(0);
 
 
 sub show_help {
 		my $msg=shift;
-        print STDERR ("$msg
+        print STDERR ("##	$msg\n\n") if( $msg);
+        print STDERR ("Version $version
 This script take the video files in IN folder, move to folder BACKUP, processing with ffmpeg and save transcoded video to folder OUT
 Usage: $0 --in=IN --out=OUT --backup=BACKUP --imageoverlay=imageoverlay [--ffmpeg=FFMPEG] [--help]
 Where:
@@ -145,6 +179,8 @@ Where:
 	--help - this help
 Sample:	${0} --in=\"c:/temp/video\" --out=\"c:/temp/video/out\" --backup=\"c:/temp/video/backup\" --imageoverlay=\"c:/TEMP/video/bg/bg.png\" --mkdir  --ffmpeg=\"c:/tools/ffmpeg/bin/ffmpeg.exe\" --mkdir
 ");
+	print "Press ENTER to exit:";
+	<STDIN>;
 	exit (1);
 }
 
