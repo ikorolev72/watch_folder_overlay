@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # korolev-ia [at] yandex.ru
 
-$version="1.1.3 20171218";
+$version="1.1.4 20171218";
 
 use File::Which;   
 use Getopt::Long;
@@ -111,8 +111,8 @@ while( 1 ) {
 			<STDIN>;	
 			exit(0);
 		}
-		print "Sleep 30 sec.\n" ;
-		sleep( 30 );		
+		print "Sleep 10 sec.\n" ;
+		sleep( 10 );		
 	}
 
 	foreach $fileName ( @ls ) {
@@ -190,7 +190,7 @@ sub show_help {
         print STDERR ("##	$msg\n\n") if( $msg);
         print STDERR ("Version $version
 This script take the video files in IN folder, move to folder BACKUP, processing with ffmpeg and save transcoded video to folder OUT
-Usage: $0 [--in=IN] [--out=OUT] [--backup=BACKUP] [--imageoverlay=imageoverlay] [--ffmpeg=FFMPEG] [--help]
+Usage: $0 [--in=IN] [--out=OUT] [--backup=BACKUP] [--imageoverlay=imageoverlay] [--ffmpeg=FFMPEG] [--once] [--help]
 Where:
 	--in=IN - watch new videos in this folder
 	--out=OUT - save transcoded videos into this folder
@@ -198,6 +198,7 @@ Where:
 	--imageoverlay=IMAGE_OVERLAY - transparent image overlay  
 	--ffmpeg=FFMPEG - path to ffmpeg
 	--mkdir - make OUT and BACKUP directories if do not exist
+	--once - run script one time ( by default script run in the infinity loop )
 	--help - this help
 Sample:	${0} --in=\"c:/temp/video\" --out=\"c:/temp/video/out\" --backup=\"c:/temp/video/backup\" --imageoverlay=\"c:/TEMP/video/bg/bg.png\" --mkdir  --ffmpeg=\"c:/tools/ffmpeg/bin/ffmpeg.exe\" --mkdir
 ");
