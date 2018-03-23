@@ -15,13 +15,14 @@ This script/application watching the specified folder, and when found new videos
 ##  Features
 ##  ------------
 Now available 2 scripts with effects :
+
 	+	watch_folder_reverse.pl - cut original viddeo to square, video play in direct and after end, in the reverse direction
 	+	watch_folder_overlay.pl - cut original viddeo to square, overlay with transparent image
 
 
 ##  Installation
 ##  ------------
-Please, install ffmpeg ( https://ffmpeg.zeranoe.com/builds/ ).
+Please, install ffmpeg ( `https://ffmpeg.zeranoe.com/builds/` ) and perl ( `https://www.activestate.com/activeperl` or `http://strawberryperl.com/` ).
 
 
 ##	Usage:
