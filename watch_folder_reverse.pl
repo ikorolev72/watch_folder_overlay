@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # korolev-ia [at] yandex.ru
 
-$version="1.2 20180205";
+$version="1.3 20180209";
 
 use File::Which;   
 use Getopt::Long;
@@ -10,8 +10,10 @@ use File::Spec;
 use Cwd;
 use File::Basename;
 
-$widthDef=1080;
-$heightDef=1080;
+#$widthDef=1080;
+#$heightDef=1080;
+$widthDef=800;
+$heightDef=800;
 $blend=0.2;
 $similarity=0.3;
 $colorkey="0x3BBD1E";
@@ -121,7 +123,7 @@ while( 1 ) {
 		$videoOut=File::Spec->catfile( $tmpdir, $fileName);
 		$origVideoIn=File::Spec->catfile( $in, $fileName );
 		$origVideoOut=File::Spec->catfile( $out, $fileName );
-		print "Start processing file '$origVideoIn'.\n" ;
+		print getDate()." Start processing file '$origVideoIn'.\n" ;
 		
 		unless( rename( $origVideoIn, $videoIn ) ) {
 			print STDERR "Cannot move file '$origVideoIn' to '$videoIn': $!. Cannot processing file $fileName\n" ;
@@ -159,23 +161,35 @@ while( 1 ) {
 			}
 		}	
 
+		$image_scale="null";
+		if( $height!=$heightDef ) {
+			if( $height< $width) {
+				$scale="scale=w=-2:h=$heightDef";
+			} else {
+				$scale="scale=h=-2:w=$widthDef";
+			}
+		}			
+		
 
 		#$cmd="$ffmpeg -y -loglevel error -i \"$videoIn\" -i \"$imageoverlay\" $loop -ss 0 -t $duration -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef} [0v]; [0v][1:v]overlay[out]\" -map \"[out]\" -map \"0:a?\" -crf 23 -f mp4 -c:a aac -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
 		#$cmd="$ffmpeg -y -loglevel error -i \"$videoIn\" -i \"$imageoverlay\"  $loop -ss 0 -t $duration  -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef} [0v1]; [0v1] reverse [0v2]; [0v1][0v2] concat=n=2:v=1:a=0 [0v]; [0v][1:v]overlay[out]\" -map \"[out]\"  -crf 23 -f mp4 -an  -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
 		#[0:v] null , crop=w=1080:h=1080 [vv1]; [vv1] split [sv1][sv2]; [sv1] reverse [vv2]; [sv2][vv2] concat=n=2:v=1:a=0 [vv3]; [vv3][1:v]overlay[out] 
 
 		#$cmd="$ffmpeg -y -loglevel error -i \"$videoIn\" -i \"$imageoverlay\"  -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef} [vv1]; [vv1] split [sv1][sv2]; [sv1] reverse [vv2]; [sv2][vv2] concat=n=2:v=1:a=0 [vv3]; [vv3][1:v]overlay[out]\" -map \"[out]\"  -crf 23 -f mp4 -an  -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
-		$cmd="$ffmpeg -y -loglevel error -i \"$videoIn\" -i \"$imageoverlay\"  -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef}, split [sv1][sv2]; [sv1] reverse [vv2]; [sv2][vv2] concat=n=2:v=1:a=0 [vv3]; [vv3][1:v]overlay[out]\" -map \"[out]\"  -crf 23 -f mp4 -an  -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
+		#$cmd="$ffmpeg -y -loglevel error -i \"$videoIn\" -i \"$imageoverlay\"  -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef}, split [sv1][sv2]; [sv1] reverse [vv2]; [sv2][vv2] concat=n=2:v=1:a=0 [vv3]; [vv3][1:v]overlay[out]\" -map \"[out]\"  -crf 23 -f mp4 -an  -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
+		#$cmd="$ffmpeg -y -loglevel error -i \"$videoIn\" -i \"$imageoverlay\"  -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef}[vv0]; [vv0][1:v]overlay, split [sv1][sv2]; [sv1] reverse [vv2]; [sv2][vv2] concat=n=2:v=1:a=0 [out]\" -map \"[out]\"  -crf 28 -preset slow  -f mp4 -an  -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
+		$cmd="$ffmpeg -y -loglevel error -i \"$videoIn\" -i \"$imageoverlay\"  -filter_complex  \"[0:v] $scale , crop=w=${widthDef}:h=${heightDef}[vv0]; [1:v] scale=w=$widthDef:h=$heightDef [vv1]; [vv0][vv1]overlay, split [sv1][sv2]; [sv1] reverse [vv2]; [sv2][vv2] concat=n=2:v=1:a=0 [out]\" -map \"[out]\"  -crf 25 -f mp4 -an  -c:v libx264  -pix_fmt yuv420p \"$videoOut\"  \n";
 		my $ret=system( $cmd );
 		if( 0==system( $cmd ) ) {
 			unless( rename( $videoOut, $origVideoOut ) ) {
 				print STDERR "Cannot move file '$videoOut' to '$origVideoOut': $!\n" ;
 				next;
 			}	
-			print "# Processing of file $fileName finished with success. Out file: '$origVideoOut'\n" ;
+			
+			print getDate()." # Processing of file $fileName finished with success. Out file: '$origVideoOut'\n" ;
 			next;
 		} 
-		print STDERR "# Processing of file $fileName finished with errors: $!\n" ;
+		print STDERR getDate()." # Processing of file $fileName finished with errors: $!\n" ;
 		print $cmd;
 	}
 	if( $once ) {
@@ -188,6 +202,14 @@ while( 1 ) {
 #print "Press ENTER to exit:";
 #<STDIN>;
 #exit(0);
+
+sub getDate {
+	my $time=shift() || time();
+	my $format=shift || "%s-%.2i-%.2i %.2i:%.2i:%.2i";
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime($time);
+	$year+=1900;$mon++;
+    return sprintf( $format,$year,$mon,$mday,$hour,$min,$sec);
+}	
 
 
 sub show_help {
